@@ -1,4 +1,5 @@
 import supabase from "../config/supabase.js";
+import redis from "../config/redis.js";
 //1.
 export const addMedicine = async (req, res) => {
     try {
@@ -36,6 +37,9 @@ export const addMedicine = async (req, res) => {
             });
         }
 
+        // Invalidate medicines cache after adding new medicine
+        await redis.del("medicines");
+
         res.status(200).json({
             success: true,
             message: "Medicine added successfully",
@@ -72,6 +76,9 @@ export const updateStock = async (req, res) => {
             console.log(`LOW STOCK ALERT: ${data.name}`);
         }
 
+        // Invalidate medicines cache after updating stock
+        await redis.del("medicines");
+
         res.status(200).json({
             message: "Stock updated successfully",
             data
@@ -90,6 +97,16 @@ export const getMedicines = async (req, res) => {
     try {
         const { category } = req.query;
 
+        // 1. Check Redis cache first
+        const cachedMedicines = await redis.get("medicines");
+        if (cachedMedicines) {
+            console.log("Serving from Redis Cache");
+            return res.status(200).json({
+                data: JSON.parse(cachedMedicines)
+            });
+        }
+
+        // 2. Fetch from Supabase if not in cache
         let query = supabase
             .from("medicines")
             .select("*");
@@ -106,6 +123,12 @@ export const getMedicines = async (req, res) => {
             });
         }
 
+        // 3. Store result in Redis cache for 60 seconds
+        await redis.set("medicines", JSON.stringify(data), {
+            EX: 60
+        });
+
+        console.log("Serving from Supabase Database");
         res.status(200).json({
             data
         });
