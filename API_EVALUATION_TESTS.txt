@@ -1,0 +1,115 @@
+================================================================================
+                    EVALUATOR API DIRECT TEST GUIDE
+================================================================================
+
+PREREQUISITES:
+1. Ensure Redis is running on port 6379.
+2. Ensure Express Server is running -> node src/server.js  (runs on port 3000)
+3. Ensure WebSocket Server is running -> node chat-server.js  (runs on port 9999)
+
+================================================================================
+1. GET MEDICINE LIST (REDIS CACHE TEST)
+================================================================================
+METHOD : GET
+URL    : http://localhost:3000/api/medicines
+HEADERS: None
+BODY   : None (select 'none' in Postman Body tab)
+
+EVALUATION CHECK:
+- 1st Request: Server terminal logs -> "Serving from Supabase Database"
+- 2nd Request (within 60s): Server terminal logs -> "Serving from Redis Cache"
+
+
+================================================================================
+2. ADD MEDICINE (CACHE INVALIDATION TEST)
+================================================================================
+METHOD : POST
+URL    : http://localhost:3000/api/medicines/add
+HEADERS: Content-Type: application/json
+BODY   : (Select 'raw' -> 'JSON')
+{
+  "name": "Amoxicillin 500mg",
+  "category": "Antibiotic",
+  "stock": 50,
+  "price": 40
+}
+
+EVALUATION CHECK:
+- Automatically deletes 'medicines' Redis cache.
+- Next GET /api/medicines will fetch fresh data from Supabase Database.
+
+
+================================================================================
+3. UPDATE STOCK (CACHE INVALIDATION TEST)
+================================================================================
+METHOD : PATCH
+URL    : http://localhost:3000/api/medicines/1/stock
+(Replace '1' with your actual medicine ID)
+HEADERS: Content-Type: application/json
+BODY   : (Select 'raw' -> 'JSON')
+{
+  "quantity": 100
+}
+
+EVALUATION CHECK:
+- Updates stock in Supabase Database.
+- Deletes 'medicines' Redis cache.
+
+
+================================================================================
+4. PLACE ORDER API (REDIS CONCURRENCY LOCK & STOCK DEDUCTION)
+================================================================================
+METHOD : POST
+URL    : http://localhost:3000/api/orders/place
+HEADERS: Content-Type: application/json
+BODY   : (Select 'raw' -> 'JSON')
+{
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "medicine_list": [
+    {
+      "medicine_id": 1,
+      "quantity": 2
+    }
+  ]
+}
+
+EVALUATION CHECK:
+- Uses Redis SET NX EX to lock medicine during order processing.
+- Validates sufficient stock before order creation.
+- Deducts quantity from Supabase 'medicines' table.
+- Creates records in 'orders' and 'order_items' tables.
+- Deletes 'medicines' Redis cache and releases Redis lock in finally block.
+
+
+================================================================================
+5. GET ORDER DETAILS API (SUPABASE JOINS)
+================================================================================
+METHOD : GET
+URL    : http://localhost:3000/api/orders/1
+(Replace '1' with the actual order_id returned from Place Order API)
+HEADERS: None
+BODY   : None
+
+EVALUATION CHECK:
+- Uses Supabase join query to fetch order, order_items, and medicine name in 1 query.
+- Returns clean JSON format with medicine_name included in each order item.
+
+
+================================================================================
+6. LOW STOCK ALERT (WS WEBSOCKET + NODE-CRON)
+================================================================================
+METHOD : WebSocket
+URL    : ws://localhost:9999
+BODY   : None
+
+EVALUATION CHECK:
+1. Connect to ws://localhost:9999 in Postman WebSocket tab.
+2. Ensure a medicine has stock < low_stock_threshold (or place an order to reduce it).
+3. Within 1 minute, cron job runs automatically and broadcasts LOW_STOCK_ALERT JSON:
+{
+  "type": "LOW_STOCK_ALERT",
+  "medicine_id": 1,
+  "medicine_name": "Paracetamol",
+  "stock": 5,
+  "threshold": 10
+}
