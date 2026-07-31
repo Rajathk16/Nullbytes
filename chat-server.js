@@ -6,7 +6,7 @@ import { GoogleGenAI } from "@google/genai";
 import supabase from "./src/config/supabase.js";
 
 const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY || process.env.key
+    apiKey:process.env.key
 });
 
 const wss = new WebSocketServer({
