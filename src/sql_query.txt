@@ -1,0 +1,86 @@
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE medicines (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    stock INT NOT NULL DEFAULT 0,
+    price NUMERIC(10,2) NOT NULL,
+    low_stock_threshold INT NOT NULL DEFAULT 10,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    total_amount NUMERIC(10,2) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE order_items (
+    id BIGSERIAL PRIMARY KEY,
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    medicine_id BIGINT NOT NULL REFERENCES medicines(id),
+    quantity INT NOT NULL,
+    price NUMERIC(10,2) NOT NULL
+);
+
+CREATE INDEX idx_medicines_category
+ON medicines(category);
+
+CREATE INDEX idx_medicines_name
+ON medicines(name);
+
+CREATE INDEX idx_medicines_stock
+ON medicines(stock);
+
+CREATE INDEX idx_orders_user_id
+ON orders(user_id);
+
+CREATE INDEX idx_orders_created_at
+ON orders(created_at);
+
+CREATE INDEX idx_order_items_order_id
+ON order_items(order_id);
+
+CREATE INDEX idx_order_items_medicine_id
+ON order_items(medicine_id);
+
+INSERT INTO users (name, email)
+VALUES
+('Rajath', 'Rajath@gmail.com'),
+('Srujan', 'srujan@gmail.com');
+
+INSERT INTO users (name, email)
+VALUES
+('Ananya', 'ananya@gmail.com'),
+('Rahul', 'rahul@gmail.com'),
+('Priya', 'priya@gmail.com'),
+('Kiran', 'kiran@gmail.com'),
+('Neha', 'neha@gmail.com'),
+('Arjun', 'arjun@gmail.com'),
+('Sneha', 'sneha@gmail.com'),
+('Vikram', 'vikram@gmail.com');
+
+INSERT INTO medicines
+(name, category, stock, price, low_stock_threshold)
+VALUES
+('Paracetamol', 'Painkiller', 100, 25.00, 10),
+('Ibuprofen', 'Painkiller', 50, 40.00, 10),
+('Amoxicillin', 'Antibiotic', 30, 80.00, 5),
+('Cetirizine', 'Antihistamine', 75, 30.00, 10);
+
+SELECT * FROM users;
+
+SELECT * FROM medicines;
+
+SELECT * FROM orders;
+
+SELECT * FROM order_items;
+

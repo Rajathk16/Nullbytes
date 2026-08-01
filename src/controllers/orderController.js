@@ -4,7 +4,7 @@ import redis from "../config/redis.js";
 export const placeOrder = async (req, res) => {
     const { user_id, medicine_list } = req.body;
 
-    // 1. Validate basic request input
+    // 1. checking basic request input
     if (!user_id || !medicine_list || !Array.isArray(medicine_list) || medicine_list.length === 0) {
         return res.status(400).json({
             success: false,
@@ -15,7 +15,7 @@ export const placeOrder = async (req, res) => {
     const acquiredLocks = [];
 
     try {
-        // 2. Redis lock 10 sec expiry
+        // 2. Redis lock 
         for (const item of medicine_list) {
             const lockKey = `lock:medicine:${item.medicine_id}`;
             const acquired = await redis.set(lockKey, "locked", {
@@ -32,7 +32,7 @@ export const placeOrder = async (req, res) => {
             acquiredLocks.push(lockKey);
         }
 
-        // 3. Validate stock availability and calculate total price
+        // 3. checking stock space and calculate total price
         let totalPrice = 0;
         const validatedItems = [];
 
@@ -109,7 +109,7 @@ export const placeOrder = async (req, res) => {
             throw new Error(`Failed to create order items: ${itemsError.message}`);
         }
 
-        // 7. Invalidate the medicines cache in Redis since stock has changed
+        // 7. Invalidate the medicines cache in Redis 
         await redis.del("medicines");
 
         // 8. Return success response

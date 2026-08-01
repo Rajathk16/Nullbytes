@@ -3,7 +3,7 @@ dotenv.config();
 
 import { WebSocketServer } from "ws";
 import { GoogleGenAI } from "@google/genai";
-import supabase from "./src/config/supabase.js";
+import supabase from "./config/supabase.js";
 import cron from "node-cron";
 
 const ai = new GoogleGenAI({
